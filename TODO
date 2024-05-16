@@ -1,0 +1,2 @@
+- parse rewrite definitions at beginning of file (regex then replacement string)
+- replace rest of the code with them
