@@ -14,6 +14,13 @@ EBNF: parse-rw [=[
 : apply-rw ( code -- ncode ) "#" split first2 swap parse-rw [ first2 [ <regexp> ] dip re-replace ] each ;
 
 ! program start with empty deque: <deque> 
+: twor ( deq -- ndeq snd fst ) pop-back pop-back spin ; ! get right two
+: twol ( deq -- ndeq snd fst ) pop-front pop-front spin ; ! get left two
+: ptwor ( deq snd fst -- ndeq ) swapd push-back swap push-back ; ! push two right
+: ptwol ( deq snd fst -- ndeq ) swapd push-front swap push-front ; ! push two left
+
+: (~) ( deq -- ndeq ) twor swap ptwor ; 
+: (/) ( deq -- ndeq ) twol swap ptwol ; 
 
 EBNF: parse [=[
     string2 = "(" ([^()]+ | string2)* ")" => [[ flatten [ { { "(" [ 40 ] } { ")" [ 41 ] } [ ] } case ] map ]]
