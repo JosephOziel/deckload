@@ -1,4 +1,4 @@
-USING: ascii kernel peg peg.ebnf multiline regexp sequences sequences.deep splitting ;
+USING: ascii combinators kernel peg peg.ebnf multiline regexp sequences sequences.deep splitting strings ;
 IN: deckload
 
 ! : remove-ws ( code -- ncode ) [ blank? ] reject ;
@@ -6,10 +6,10 @@ IN: deckload
 ! (string | (.))*
 EBNF: parse-rw [=[
     ws = (" " | "\n" | "\r" | "\t")*
-    string2 = "(" ([^()]+ | string2)* ")" => [[ flatten ]]
-    string = ("(" ([^()]+ | string2)* ")") | "()"~ => [[ dup ignore = [ drop { } ] [ second flatten ] if ]]
-    rw = ws~ string ws~ string ws~ "@"~ ws~
-    program = rw* 
+    string2 = "(" ([^()]+ | string2)* ")" => [[ flatten [ { { "(" [ 40 ] } { ")" [ 41 ] } [ ] } case ] map ]]
+    string = ("(" ([^()]+ | string2)* ")") => [[ but-last rest { } [ append ] reduce ]]
+    rw = ws~ string ws~ string ws~ "@"~ ws~ => [[ [ { } [ append ] reduce >string ] map ]]
+    program = rw*
 ]=]
 
-: apply-rw ( code -- ncode ) 
+: apply-rw ( code -- ncode ) ":" split first2 swap parse-rw [ first2 [ <regexp> ] dip re-replace ] each ;
