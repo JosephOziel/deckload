@@ -7,6 +7,8 @@ All operators from underload with versions to apply to the other side of the sta
 
 \~ - swap right
 / - swap left
+: - dup right
+; - dup left
 ! - pop right
 ? - pop left
 \* - cat right
@@ -15,11 +17,12 @@ a - unit right
 b - unit left
 (x) - push everything in the parentheses on the stack as string
 ^ - evaluate the quote from the top of the stack on the right of the stack
-$ - eval quote on the left of the stack
+(& - eval quote on the left of the stack) NOT NEEDED unless used to reverse the direction of each word
 S - print right
 O - print left
-\> - rotate top element from right to top on the left
-\< - rotate top on left to top on right
+\< - rotate top element from right to top on the left
+\> - rotate top on left to top on right
+
 \% - repn combinator?
 
 \@ - string writing with regex and then replacement https://esolangs.org/wiki/Tetanus 
