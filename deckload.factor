@@ -19,8 +19,16 @@ EBNF: parse-rw [=[
 : ptwor ( deq snd fst -- ndeq ) swapd push-back swap push-back ; ! push two right
 : ptwol ( deq snd fst -- ndeq ) swapd push-front swap push-front ; ! push two left
 
+: oner ( deq -- ndeq fst ) pop-back swap ; 
+: onel ( deq -- ndeq fst ) pop-front swap ; 
+
 : (~) ( deq -- ndeq ) twor swap ptwor ; 
 : (/) ( deq -- ndeq ) twol swap ptwol ; 
+: (:) ( deq -- ndeq ) oner dup ptwor ; 
+: (;) ( deq -- ndeq ) onel dup ptwol ;
+: (!) ( deq -- ndeq ) oner drop ; 
+: (?) ( deq -- ndeq ) onel drop ; 
+
 
 EBNF: parse [=[
     string2 = "(" ([^()]+ | string2)* ")" => [[ flatten [ { { "(" [ 40 ] } { ")" [ 41 ] } [ ] } case ] map ]]
