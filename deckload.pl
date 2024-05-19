@@ -35,6 +35,9 @@ tokenize([0'`|T_i], [Out|T_o]) :-
     Out = word(Value),
     tokenize(Remain, T_o).
 
+tokenize([0'{|T_i], ['{'|T_o]) :- tokenize(T_i, T_o).
+tokenize([0'}|T_i], ['}'|T_o]) :- tokenize(T_i, T_o).
+
 tokenize([A|T_i], [Out|T_o]) :-
     string_codes(Name, [A]),
     Out = word(Name),
@@ -54,3 +57,12 @@ consume_until([Char|In], TargetChar, Remain, [Char|Out]) :-
     consume_until(In, TargetChar, Remain, Out).
 
 % Parser:
+parse(Code, AST) :-
+    tokenize(Code, Out),
+    program(AST, Out, []).
+
+pparse(Code) :-
+    parse(Code, AST),
+    print_term(AST, []).
+
+
