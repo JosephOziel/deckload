@@ -1,3 +1,5 @@
+! old version
+
 USING: ascii combinators kernel peg peg.ebnf persistent.deques multiline regexp sequences sequences.deep splitting strings ;
 IN: deckload
 
