@@ -65,4 +65,3 @@ pparse(Code) :-
     parse(Code, AST),
     print_term(AST, []).
 
-
