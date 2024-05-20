@@ -35,8 +35,8 @@ tokenize([0'`|T_i], [Out|T_o]) :-
     Out = word(Value),
     tokenize(Remain, T_o).
 
-tokenize([0'{|T_i], ['{'|T_o]) :- tokenize(T_i, T_o).
-tokenize([0'}|T_i], ['}'|T_o]) :- tokenize(T_i, T_o).
+tokenize([0'[|T_i], [']'|T_o]) :- tokenize(T_i, T_o).
+tokenize([0'[|T_i], [']'|T_o]) :- tokenize(T_i, T_o).
 
 tokenize([A|T_i], [Out|T_o]) :-
     string_codes(Name, [A]),
