@@ -32,15 +32,15 @@ tokenize([0'(|T_i], [Out|T_o]) :-
 tokenize([0'`|T_i], [Out|T_o]) :-
     consume_until(T_i, 0'`, Remain, Codes),
     string_codes(Value, Codes),
-    Out = word(Value),
+    Out = sym(Value),
     tokenize(Remain, T_o).
 
-tokenize([0'{|T_i], ['{'|T_o]) :- tokenize(T_i, T_o).
-tokenize([0'}|T_i], ['}'|T_o]) :- tokenize(T_i, T_o).
+tokenize([0'[|T_i], ['['|T_o]) :- tokenize(T_i, T_o).
+tokenize([0']|T_i], [']'|T_o]) :- tokenize(T_i, T_o).
 
 tokenize([A|T_i], [Out|T_o]) :-
     string_codes(Name, [A]),
-    Out = word(Name),
+    Out = sym(Name),
     tokenize(T_i, T_o).
 
 % utils
@@ -57,11 +57,27 @@ consume_until([Char|In], TargetChar, Remain, [Char|Out]) :-
     consume_until(In, TargetChar, Remain, Out).
 
 % Parser:
-parse(Code, AST) :-
+parse(Text, AST) :-
+    string_codes(Text, Code),
     tokenize(Code, Out),
     program(AST, Out, []).
 
 pparse(Code) :-
-    parse(Code, AST),
+    string_codes(Code, Code1),
+    parse(Code1, AST),
     print_term(AST, []).
 
+program([Expr|Rest]) --> expr(Expr), (program(Rest) | {Rest = []}).
+
+expr(Expr) --> str(Expr) ; rw(Expr) ; sym(Expr) .
+
+str(str(Str)) --> [str(Str)].
+
+sym(sym(Sym)) --> [sym(Sym)].
+
+rw(rw(Pat, Rep)) --> ['['], pat(Pat), [']', '['], pat(Rep), [']'].
+
+pat([Pat|Rest]) --> pat2(Pat), (pat(Rest) | {Rest = []}).
+
+pat2(sym(Sym)) --> [sym(Sym)].
+pat2(var(Var)) --> [var(Var)].
