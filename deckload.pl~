@@ -73,7 +73,7 @@ expr(Expr) --> str(Expr) ; rw(Expr) ; sym(Expr) .
 
 str(str(Str)) --> [str(Str)].
 
-sym(sym(Sym)) --> [sym(Sym)], {Sym \= "{", Sym \= "}"}.
+sym(sym(Sym)) --> [sym(Sym)].
 
 rw(rw(Pat, Rep)) --> ['['], pat(Pat), [']', '['], pat(Rep), [']'].
 

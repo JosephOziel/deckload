@@ -16,6 +16,7 @@ tokenize([In|T], Out) :-
     code_type(In, space),
     tokenize(T, Out).
 
+% add a variables that captures multiple terms: N~
 tokenize([In|T_i], [Out|T_o]) :-
     code_type(In, digit),
     consume_type([In|T_i], digit, Remain, DigitList),
