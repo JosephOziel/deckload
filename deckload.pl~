@@ -16,6 +16,13 @@ tokenize([In|T], Out) :-
     code_type(In, space),
     tokenize(T, Out).
 
+% add a variables that captures multiple terms: ~N
+tokenize([0'~|T_i], [Out|T_o]) :-
+    consume_type(T_i, digit, Remain, DigitList),
+    number_codes(Value, DigitList),
+    Out = avar(Value),
+    tokenize(Remain, T_o).
+
 tokenize([In|T_i], [Out|T_o]) :-
     code_type(In, digit),
     consume_type([In|T_i], digit, Remain, DigitList),
@@ -29,8 +36,9 @@ tokenize([0'(|T_i], [Out|T_o]) :-
     Out = str(Value),
     tokenize(Remain, T_o).
 
-tokenize([0'`|T_i], [Out|T_o]) :-
-    consume_until(T_i, 0'`, Remain, Codes),
+tokenize([0''|T_i], [Out|T_o]) :-
+    code_type(C, space),
+    consume_until(T_i, C, Remain, Codes),
     string_codes(Value, Codes),
     Out = sym(Value),
     tokenize(Remain, T_o).
@@ -79,5 +87,16 @@ rw(rw(Pat, Rep)) --> ['['], pat(Pat), [']', '['], pat(Rep), [']'].
 
 pat([Pat|Rest]) --> pat2(Pat), (pat(Rest) | {Rest = []}).
 
+pat2(pstr([Pat|Rest])) --> ['['], pat2(Pat), (pat(Rest) | {Rest = []}), [']'].
 pat2(sym(Sym)) --> [sym(Sym)].
+pat2(lstr(Str)) --> [str(Str)].
 pat2(var(Var)) --> [var(Var)].
+pat2(avar(Var)) --> [avar(Var)].
+
+%Rewritor:
+
+%Evauluator:
+% Create a builtins file somewhere for the io builtins and such. also
+% compile to assembly in the future.
+
+% only evals strings and builtin functions
