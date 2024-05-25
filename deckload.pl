@@ -93,10 +93,15 @@ pat2(lstr(Str)) --> [str(Str)].
 pat2(var(Var)) --> [var(Var)].
 pat2(avar(Var)) --> [avar(Var)].
 
-% Rewritor:
+% Rewriter:
+rewrite().
 
 % Evauluator:
 % Create a builtins file somewhere for the io builtins and such. also
 % compile to assembly in the future.
 
-% only evals strings and builtin functions
+% only evals strings and builtin functions, this is after the rewrites.
+eval(str(Str), Stack, NStack) :-
+    append(Stack, [Str], NStack).
+eval(sym("S"), [Str|Stack], Stack) :-
+    print_term(Str, []).
