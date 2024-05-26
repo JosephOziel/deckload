@@ -94,7 +94,14 @@ pat2(var(Var)) --> [var(Var)].
 pat2(avar(Var)) --> [avar(Var)].
 
 % Rewriter:
-
+a_rewrite([rw(Pat, Rep)|Rest], Stack, Rws, NRws) :- %Rws is a assoc_list
+    append(Rws, [Pat-Rep], Rws1),
+    a_rewrite(Rest, Stack, Rws1, NRws).
+a_rewrite([T|Rest], Stack, Rws, NRws) :-
+    member(T, [str(_), sym(_)]),
+    append(Stack, [T], NStack),
+    apply_rws(Rws, NStack, NStack1),
+    a_rewrite(Rest, NStack1, Rws, Nrws).
 
 % Evauluator:
 % Create a builtins file somewhere for the io builtins and such. also
