@@ -94,6 +94,14 @@ pat2(var(Var)) --> [var(Var)].
 pat2(avar(Var)) --> [avar(Var)].
 
 % Rewriter:
+apply_rw(Rw, Stack, NStack) :-
+    trace. % HOWWWW
+
+apply_rws([], Stack, Stack).
+apply_rws([Rw|Rest], Stack, NStack) :-
+    apply_rw(Rw, Stack, NStack1),
+    apply_rws(Rest, NStack1, NStack).
+
 a_rewrite([rw(Pat, Rep)|Rest], Stack, Rws, NRws) :- %Rws is a assoc_list
     append(Rws, [Pat-Rep], Rws1),
     a_rewrite(Rest, Stack, Rws1, NRws).
