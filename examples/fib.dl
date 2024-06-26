@@ -1,0 +1,4 @@
+[0 fac] = [1]
+[$0 fac] = [$0 $0 1 - fac *]
+
+[main] = [10 fac p-int]
