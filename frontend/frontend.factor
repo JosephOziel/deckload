@@ -9,5 +9,3 @@ EBNF: deckload-parse [=[
     def = expr "=" expr "."
     prog = def*
 ]=]
-
-"[ abba $0 ] = [ $1 ] cdf . " deckload-parse .
