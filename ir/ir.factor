@@ -44,7 +44,13 @@ C: <match-const> match-const
 : compile-def ( def -- ir )
     [ compile-rule ] map ;
 
+: group-by-name ( rules -- defs )
+    H{ } clone swap [
+        2dup name>> swap at* 
+        [ swap suffix! drop ] [ drop [ 1vector ] keep name>> rot [ set-at ] keep ] if 
+    ] each ;
+
 PRIVATE>
 
-: compile-to-ir ( defs -- ir )
-    [ compile-def ] assoc-map ;
+: compile-to-ir ( rules -- ir )
+    group-by-name [ compile-def ] assoc-map ;
