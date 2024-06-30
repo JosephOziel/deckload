@@ -14,11 +14,17 @@ C: <match-const> match-const
 
 <PRIVATE
 
-: compile-body ( body -- compiled-body ) ;
+: compile-body ( num-vars bindings body -- compiled-body ) 
+    dup vector? [ [ compile-body ] 2with map ] [
+        {
+            { T{ var f ?a } [ ?a swap at - 1 - <var> ] }
+            [ 2nip ]
+        } match-cond
+    ] if ;
 
 : (compile-match-terminal) ( num-vars bindings eq-vars pat -- num-vars' bindings' eq-vars' compiled-matcher )
     {
-        { T{ var f ?a } 
+        { T{ var f ?a }
             [ ?a pick at* 
                 [ reach 2array suffix [ 1 + ] 2dip ]
                 [ drop [ [ 1 + ] keep ] [ [ ?a swap set-at ] keep ] [ ] tri* ] if match-var 
@@ -29,11 +35,11 @@ C: <match-const> match-const
 : (compile-matcher) ( num-vars bindings eq-vars pat -- num-vars' bindings' eq-vars' compiled-matcher )
     dup vector? [ [ (compile-matcher) ] map ] [ (compile-match-terminal) ] if ;
 
-: compile-matcher ( pat -- matcher )
-    0 H{ } clone { } roll (compile-matcher) swap <matcher> 2nip ;
+: compile-matcher ( pat -- matcher num-vars bindings )
+    0 H{ } clone { } roll (compile-matcher) swap <matcher> -rot ;
 
 : compile-rule ( rule -- ir )
-    [ left>> compile-matcher ] [ right>> compile-body ] bi <ir.rule> ;
+    [ left>> compile-matcher ] keep right>> compile-body <ir.rule> ;
 
 : compile-def ( def -- ir )
     [ compile-rule ] map ;
