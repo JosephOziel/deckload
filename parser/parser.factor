@@ -19,5 +19,5 @@ EBNF: deckload-parse [=[
     var = "$"~ [0-9]+ => [[ string>number <var> ]]
     expr = (spaces ( "["~ expr "]"~ | ident | var ) spaces)+
     def = expr "="~ expr "."~ => [[ first2 swap unclip-last { { T{ const f ?a } [ ?a ] } [ "the last item on the left of a rule should be a const" throw ] } match-cond spin <rule> ]]
-    prog = (import)*
+    prog = (def | import)*
 ]=]
