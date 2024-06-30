@@ -1,8 +1,8 @@
 USING: peg peg.ebnf kernel strings sequences multiline ;
 IN: deckload.parser
 
-TUPLE: var { name string } ;
-TUPLE: const { name string } ;
+TUPLE: var name ;
+TUPLE: const name ;
 TUPLE: rule left right ;
 C: <var> var
 C: <const> const
