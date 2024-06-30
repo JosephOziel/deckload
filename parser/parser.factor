@@ -1,19 +1,24 @@
-USING: peg peg.ebnf kernel strings sequences multiline ;
+USING: arrays peg peg.ebnf kernel strings sequences multiline math.parser match ;
 IN: deckload.parser
 
-TUPLE: var name ;
+TUPLE: var num ;
 TUPLE: const name ;
-TUPLE: rule left right ;
+TUPLE: rule name left right ;
+TUPLE: import file ;
+
 C: <var> var
 C: <const> const
 C: <rule> rule
+C: <import> import 
 
-! should groups be represented some way?
+MATCH-VARS: ?a _ ;
+
 EBNF: deckload-parse [=[
     spaces = [ \t\n\r]* => [[ drop ignore ]]
-    ident = [^=.[\]$ \t\n\r]+ => [[ >string <const> ]]
-    var = "$"~ [^=.[\]$ \t\n\r]+ => [[ >string <var> ]]
+    import = "@"~ spaces [^=.[\]$@]+ spaces "."~ => [[ >string <import> ]]
+    ident = [^=.[\]$@ \t\n\r]+ => [[ >string <const> ]]
+    var = "$"~ [0-9]+ => [[ string>number <var> ]]
     expr = (spaces ( "["~ expr "]"~ | ident | var ) spaces)+
-    def = expr "="~ expr "."~ => [[ first2 <rule> ]]
-    prog = def*
+    def = expr "="~ expr "."~ => [[ first2 swap unclip-last { { T{ const f ?a } [ ?a ] } [ "the last item on the left of a rule should be a const" throw ] } match-cond spin <rule> ]]
+    prog = (import)*
 ]=]
