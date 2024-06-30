@@ -36,7 +36,7 @@ C: <match-const> match-const
     dup vector? [ [ (compile-matcher) ] map ] [ (compile-match-terminal) ] if ;
 
 : compile-matcher ( pat -- matcher num-vars bindings )
-    0 H{ } clone { } roll (compile-matcher) swap <matcher> -rot ;
+    0 H{ } clone { } roll (compile-matcher) swap reach '[ [ _ swap - 1 - ] map ] map <matcher> -rot ;
 
 : compile-rule ( rule -- ir )
     [ left>> compile-matcher ] keep right>> compile-body <ir.rule> ;
