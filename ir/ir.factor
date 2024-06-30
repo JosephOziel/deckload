@@ -2,6 +2,8 @@ USING: accessors arrays assocs deckload.parser kernel match math
 prettyprint sequences strings vectors ;
 IN: deckload.ir
 
+FROM: syntax => _ ;
+
 MATCH-VARS: ?a ?b ;
 TUPLE: matcher pat eq-vars ;
 TUPLE: ir.rule { matcher matcher } body ;

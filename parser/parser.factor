@@ -1,4 +1,4 @@
-USING: arrays peg peg.ebnf kernel strings sequences multiline math.parser match ;
+USING: arrays kernel match math.parser multiline peg peg.ebnf strings sequences  ;
 IN: deckload.parser
 
 TUPLE: var num ;
