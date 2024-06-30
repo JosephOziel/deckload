@@ -5,6 +5,7 @@ TUPLE: var num ;
 TUPLE: const name ;
 TUPLE: rule name left right ;
 TUPLE: import file ;
+
 C: <var> var
 C: <const> const
 C: <rule> rule
