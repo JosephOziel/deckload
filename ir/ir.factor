@@ -1,6 +1,7 @@
 USING: accessors arrays assocs deckload.parser kernel match math
 prettyprint sequences strings vectors ;
 IN: deckload.ir
+FROM: syntax => _ ;
 
 FROM: syntax => _ ;
 
