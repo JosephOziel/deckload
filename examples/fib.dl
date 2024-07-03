@@ -1,9 +1,9 @@
 $0 [z] + = $0.
-$1 [$0 s] + = $1 $0 + s.
+$1 [$0 s] + = [$1 $0 +] s.
 $0 [z] * = z.
 $1 [$0 s] * = [$1 $0 *] $1 +.
 
 [z] fac = z s.
 [$0 s] fac = [$0 s] [$0 fac] *.
 
-main = z s s fac print.
+main = [[z s] s] fac.

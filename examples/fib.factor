@@ -39,8 +39,10 @@ H{
                 }
                 { body
                     V{
-                        T{ var { num 1 } }
-                        T{ var { num 0 } }
+                        V{
+                            T{ var { num 1 } }
+                            T{ var { num 0 } }
+                        }
                         T{ const { name "+" } }
                         T{ const { name "s" } }
                     }
