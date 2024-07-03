@@ -8,7 +8,7 @@ FROM: syntax => _ ;
 MATCH-VARS: ?a ?b ;
 TUPLE: matcher pat eq-vars ;
 TUPLE: ir.rule { matcher matcher } body ;
-TUPLE: match-const { const string } ;
+TUPLE: match-const const ;
 SYMBOL: match-var
 
 C: <ir.rule> ir.rule
@@ -53,7 +53,16 @@ C: <match-const> match-const
         [ swap suffix! drop ] [ drop [ 1vector ] keep name>> rot [ set-at ] keep ] if 
     ] each ;
 
+: (add-undefined-funcs) ( map e -- map )
+    {
+        { T{ const f ?a } [ ?a over key? [ V{ } ?a pick set-at ] unless ] }
+        [ dup vector? [ [ (add-undefined-funcs) ] each ] [ drop ] if ]
+    } match-cond ;
+
+: add-undefined-funcs ( map -- map' )
+    dup values [ [ [ left>> ] [ right>> ] bi [ (add-undefined-funcs) ] bi@ ] each ] each ;
+
 PRIVATE>
 
 : compile-to-ir ( rules -- ir )
-    group-by-name [ compile-def ] assoc-map ;
+    group-by-name add-undefined-funcs [ compile-def ] assoc-map ;
