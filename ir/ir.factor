@@ -8,7 +8,7 @@ FROM: syntax => _ ;
 MATCH-VARS: ?a ?b ;
 TUPLE: matcher pat eq-vars ;
 TUPLE: ir.rule { matcher matcher } body ;
-TUPLE: match-const { const string } ;
+TUPLE: match-const const ;
 SYMBOL: match-var
 
 C: <ir.rule> ir.rule
