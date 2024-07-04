@@ -16,10 +16,18 @@ MATCH-VARS: ?a _ ;
 
 : flatten ( tree -- flattened )
     dup vector? [
-        [ flatten ] map dup empty? 
+        dup empty?
         [ unclip-last dup vector? [ append ] [ suffix ] if ] unless
         dup length 1 = [ first ] when
     ] when ;
+
+: parse-rule ( left right -- rule )
+    swap dup vector?
+    [ unclip-last ] [ V{ } swap ] if
+    {
+        { T{ const f ?a } [ ?a ] }
+        [ "the last item on the left of a rule should be a const" throw ]
+    } match-cond spin <rule> ;
 
 
 EBNF: deckload-parse [=[
@@ -28,6 +36,6 @@ EBNF: deckload-parse [=[
     ident = [^=.[\]$@ \t\n\r]+ => [[ >string <const> ]]
     var = "$"~ [0-9]+ => [[ string>number <var> ]]
     expr = (spaces ( "["~ expr "]"~ | ident | var ) spaces)+ => [[ flatten ]]
-    def = expr "="~ expr "."~ => [[ first2 swap unclip-last { { T{ const f ?a } [ ?a ] } [ "the last item on the left of a rule should be a const" throw ] } match-cond spin <rule> ]]
+    def = expr "="~ expr "."~ => [[ first2 parse-rule ]]
     prog = (def | import)*
 ]=]
