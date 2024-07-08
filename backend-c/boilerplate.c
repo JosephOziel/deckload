@@ -5,6 +5,8 @@
 
 #define INIT_CAP 8
 
+int num_allocs = 0;
+
 struct Func;
 
 typedef struct {
@@ -14,9 +16,10 @@ typedef struct {
     size_t cap;
 } Vec ;
 
-typedef void(*F)(Vec*, size_t);
+typedef struct Func(*F)(Vec*, size_t);
 
 typedef enum {
+    NONE = 0,
     FUNC = 1,
     BLOCK = 2
 } Ty ;
@@ -42,7 +45,7 @@ void* check_oom(void* p) {
 }
 
 void* ensure(void* p, size_t len, size_t* cap, size_t size) {
-    if(len >= *cap) {
+    if(len > *cap) {
         *cap *= 2;
         return check_oom(realloc(p, *cap*size));
     }
@@ -50,7 +53,13 @@ void* ensure(void* p, size_t len, size_t* cap, size_t size) {
 }
 
 void* new_buf(size_t size) {
+    num_allocs += 1;
     return check_oom(malloc(size));
+}
+
+void free_buf(void* ptr) {
+    num_allocs -= 1;
+    free(ptr);
 }
 
 Func func_new(F f) {
@@ -75,8 +84,16 @@ void vec_drop(Vec s) {
     for(size_t i=0; i<s.len; ++i)
         if(s.mem[i].ty==BLOCK) vec_drop(s.mem[i].data.block);
     
-    free(s.mem);
-    free(s.refcount);
+    free_buf(s.mem);
+    free_buf(s.refcount);
+}
+
+void vec_shallow_drop(Vec s) {
+    assert(*s.refcount);
+    if(--*s.refcount) return;
+    
+    free_buf(s.mem);
+    free_buf(s.refcount);
 }
 
 void func_drop(Func f) {
@@ -88,14 +105,26 @@ Func shallow_clone(Func f) {
     return f;
 }
 
+Func none() {
+    return (Func) {
+        .ty = NONE,
+        .data = (Data) { .func = NULL }
+    };
+}
+
 void vec_push(Vec* s, Func f) {
     s->mem=ensure(s->mem, s->len+1, &s->cap, sizeof(Func));
     s->mem[s->len++]=f;
 }
 
+Func vec_pop(Vec* v) {
+    assert(v->len>0);
+    return v->mem[--v->len];
+}
+
 void vec_dec_len(Vec* s, size_t d) {
     assert(s->len>=d);
-    s->len-=d;
+    while(d--) func_drop(s->mem[--s->len]);
 }
 
 size_t vec_len(Vec s) {
@@ -140,19 +169,45 @@ void vec_into_block(Vec* v, size_t len) {
     });
 }
 
-void d_call(Func f, Vec* s, size_t arg_start) {
-    if(arg_start == vec_len(*s)) {
-        vec_push(s, shallow_clone(f));
+void d_call(Func f, Vec* s, size_t arg_start, int var) {
+    if(var && arg_start == vec_len(*s)) {
+        vec_push(s, f);
         return;
     }
 
-    Func t = f;
-    if(t.ty == BLOCK) {
-        vec_append_except_last(s, t.data.block);
-        t=vec_last(t.data.block, 0);
+    Func t;
+    while(f.ty) {
+        t = f;
+        if(f.ty == BLOCK) {
+            vec_append_except_last(s, f.data.block);
+            f=vec_last(f.data.block, 0);
+        }
+        assert(f.ty==FUNC);
+        f=(*f.data.func)(s, arg_start);
+        func_drop(t);
     }
-    assert(t.ty==FUNC);
-    (*t.data.func)(s, arg_start);
 }
 
+typedef struct {
+    Vec block;
+    size_t idx;
+    size_t len;
+} FrozenBlock;
+
+FrozenBlock fb_new(Vec block) {
+    return (FrozenBlock) {
+        .block = block,
+        .idx = 0,
+        .len = vec_len(block)
+    };
+}
+
+Func fb_advance(FrozenBlock* fb) {
+    if(fb->idx>=fb->len) return none();
+    return vec_get(fb->block, fb->idx++);
+}
+
+void fb_drop(FrozenBlock fb) {
+    vec_shallow_drop(fb.block);
+}
 // generated code begins...
