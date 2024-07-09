@@ -1,73 +1,94 @@
-USING: accessors arrays combinators deckload.ir deckload.parser formatting kernel match namespaces math
-math.parser prettyprint ranges sequences sequences.deep sequences.generalizations sequences.repeating
-;
+USING: accessors arrays assocs combinators deckload.ir
+deckload.parser formatting kernel match math math.parser
+namespaces prettyprint ranges sequences sequences.deep
+sequences.generalizations sequences.repeating ;
+
 FROM: deckload.ir => match-var ;
 IN: deckload.backend-factor
 
-CONSTANT: names V{ }
-
 ! HELPERS:
 : vec-to-str ( vec -- str ) 
-    " " join "V{ %s }" sprintf ;
+    " " join "[ %s ]" sprintf ;
 
 : boilerplate ( -- code ) 
-    "USING: sequences.generalizations match ;\nFROM: syntax => _ ;\n\n" ;
+    "USING: continuations match sequences.generalizations quotations ;\nFROM: syntax => _ ;\n\n: deckload-call ( quot -- quot' ) { } swap with-datastack >quotation ;\n\n" ;
 
-:: compile-pat ( pat n! -- code )
-    pat
-    [ { 
-        { [ dup match-const? ] [ const>> <const> ] }
-        { [ dup match-var = ] [ drop n dup  1 - n! ] }
-        [ n compile-pat ] 
-    } cond ] map ;
-
-: compile-eqvars ( eqvars -- code )
-    dup empty? [ drop "" ] 
-    [ 
-        [ dup second [ first ] dip "%s %s =" sprintf ] map 
-        dup length 1 - " and" swap repeat
-        [ " " join ] dip append
-    ] if ;
+:: complex-fried ( body outside quote -- code ) 
+    body [
+        {
+            { [ dup const? ] [ name>> "deckload-%s" sprintf quote push ] }
+            { [ dup var? ] [ num>> number>string 63 prefix outside push "_" quote push ] }
+        }
+    ] ;
 
 : compile-body-helper ( body -- code ) 
     [ 
         {
-            { [ dup const? ] [ dup name>> names [ = ] with any? [ name>> "[ deckload-%s ]" sprintf ] [ unparse ] if ] }
-            { [ dup var? ] [ num>> number>string ] }
-            [ compile-body-helper vec-to-str ]
+            { [ dup const? ] [ name>> "deckload-%s" sprintf ] } ! dup name>> names [ = ] with any? swap name>> "deckload-%s" sprintf swap [ "[ " " ]" surround ] when
+            { [ dup var? ] [ num>> number>string 63 prefix ] }
+            [ V{ } V{ } complex-fried " deckload-call" append ]
         } cond 
     ] map ;
 
-: compile-body ( eq-vars body -- code )
-    compile-body-helper dup 
+: compile-body ( body -- code ) 
+    compile-body-helper [ dup first 100 = [ "[ " " ]" surround ] when ] map dup 
+    [
+        {
+            { [ dup first 91 = ] [ drop "_ call" ] } ! 91 is the ascii number for "[" 
+            [ drop "_" ]
+        } cond
+    ] map " " join "'[ %s ]" sprintf
+    [ " " join ] dip "[ %s %s ]" sprintf ;
+
+: compile-pat ( pat -- code )
     [ 
         {
-            { [ dup first 91 = ] [ drop "_ call" ] } ! 91 is the ascii number for [
-            [ drop "_" ]
+            { [ dup match-const? ] [ const>> "deckload-%s" sprintf ] }
+            { [ dup match-var? ] [ num>> number>string 63 prefix ] }
+            [ compile-pat vec-to-str ]
         } cond 
-    ] map " " join "'[ %s ]" sprintf
-    [ " " join ] dip pick empty? [ " ]" ] [ " '[ _ ] when ]" ] if "[ %s %s %s" swap [ sprintf ] dip append ;
+    ] map ;
 
-:: compile-case ( rule -- code ) 
-    "{ "
-    rule matcher>> pat>> dup flatten [ match-var = ] count 1 - compile-pat unparse unclip drop 
-    " "
-    rule matcher>> eq-vars>> compile-eqvars rule body>> compile-body
-    " }\n"
-    5 narray concat ;
+: compile-case ( rule -- code )
+    [ matcher>> pat>> compile-pat " " join "{ %s }" sprintf ]
+    [ matcher>> eq-vars>> compile-eqvars rule body>> compile-body ] bi
+    "{ %s %s }\n" sprinf ;
 
-:: compile-normal ( fn -- code ) 
-    fn second [ matcher>> pat>> flatten [ match-var = ] count ] map supremum [0..b) >array [ number>string ] map " " join "MATCH-VARS: %s ;\n" sprintf
-    fn first dup names push
-    fn second first matcher>> pat>> length :> l
-    l " 0 " swap repeat "MACRO: deckload-%s ( %s-- 0 )\n" sprintf
-    l "%s narray\n" sprintf
-    fn second [ compile-case ] map "" join "{\n%s} match-cond ;\n\n" sprintf
-    4array concat ;
+: compile-normal ( rule -- code )
+    dup dup first swap second first matcher>> pat>> length
+    [ " 0 " swap repeat "MACRO: deckload-%s ( %s-- 0 )\n" sprintf ]
+    [ "%s narray\n" sprintf ] bi
+    over [ second [ compile-case ] map concat "{\n%s} match-cond ;\n\n" sprintf ] 
+    3array concat ;
 
+: compile-main-body ( body -- code )
+    [
+        {
+            { [ dup const? ] [ name>> "deckload-%s" sprintf ] }
+            [ compile-main-body vec-to-str " deckload-call" append ]
+        } cond
+    ] map ;
 
+: compile-main ( rule -- code ) 
+    "MACRO: deckload-main ( -- 0 )\n"
+    swap second first body>> compile-main-body " " join 
+    "[ %s unparse write ] ;\n\nMAIN: deckload-main\n" sprintf append ;
 
-! assumes all rules for the function take in the same number of args
-! : compile-rule ( rule -- code ) 
-!     first "main" = [ compile-main ] [ compile-normal ] if
-! ;
+: compile-rule ( rule -- code ) 
+    dup first "main" = [ compile-main ] [ compile-normal ] if ;
+
+: compile-symbols ( ir -- code ) 
+    [ 
+        dup second empty? [ first "SYMBOL: deckload-%s\n" sprintf ] [ first "DEFER: deckload-%s\n" sprintf ] if
+    ] map concat "\n" append 1array ;
+
+: max-arg-length ( ir -- n )
+    [ second empty? ] reject [ second [ matcher>> pat>> flatten [ match-var? ] count ] map supremum ] map supremum
+    [0..b) >array [ number>string 63 prefix ] map " " join "MATCH-VARS: %s ;\n\n" sprintf 1array ;
+
+: compile-to-factor ( ir -- code )
+    >alist 
+    [ compile-symbols ] 
+    [ max-arg-length ]
+    [ [ second empty? ] reject [ compile-rule ] map ]
+    tri 3append boilerplate prefix concat ;

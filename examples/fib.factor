@@ -1,66 +1,30 @@
-H{
-    {
-        "+"
-        V{
-            T{ ir.rule
-                { matcher
-                    T{ matcher
-                        { pat
-                            V{
-                                match-var
-                                V{
-                                    T{ match-const
-                                        { const "z" }
-                                    }
-                                }
-                            }
-                        }
-                        { eq-vars { } }
-                    }
-                }
-                { body V{ T{ var { num 0 } } } }
-            }
-            T{ ir.rule
-                { matcher
-                    T{ matcher
-                        { pat
-                            V{
-                                match-var
-                                V{
-                                    match-var
-                                    T{ match-const
-                                        { const "s" }
-                                    }
-                                }
-                            }
-                        }
-                        { eq-vars { } }
-                    }
-                }
-                { body
-                    V{
-                        V{
-                            T{ var { num 1 } }
-                            T{ var { num 0 } }
-                        }
-                        T{ const { name "+" } }
-                        T{ const { name "s" } }
-                    }
-                }
-            }
-        }
-    }
-}
-
-USING: sequences.generalizations match ; 
-
+USING: continuations match sequences.generalizations quotations ;
 FROM: syntax => _ ;
 
-MATCH-VARS: 0 1 ;
+: deckload-call ( quot -- quot' ) { } swap with-datastack >quotation ;
 
-! FIGURE OUT: when do group and when to not. its kinda confusing.
-MACRO: `+` ( 0 0 -- 0 ) 
-    2 narray 
-    { { { 0 V{ T{ const { name "z" } } } } [ 0 '[ _ ] ] }
-      { { 1 V{ 0 T{ const { name "s" } } } } [ 1 0 [ `+` ] T{ const { name "s" } } '[ _ _ _ call _ ] ] }
-    } match-cond ;
+SYMBOL: deckload-z
+SYMBOL: deckload-s
+DEFER: deckload-*
+DEFER: deckload-+
+DEFER: deckload-fac
+DEFER: deckload-main
+
+MATCH-VARS: ?0 ?1 ;
+
+MACRO: deckload-* (  0  0 -- 0 )
+2 narray
+{
+{ { ?0 deckload-z } [  [ deckload-z ] '[ _ call ]  ] }
+{ { ?1 [ ?0 deckload-s ] } [ ?1 ?0 '[ _ _ deckload-* ] ?1 [ deckload-+ ] '[ _ deckload-call _ call ]  ] }
+} match-cond ;
+
+MACRO: deckload-+ (  0  0 -- 0 )
+2 narray
+{
+{ { ?0 deckload-z } [  ?0 '[ _ ]  ] }
+{ { ?1 [ ?0 deckload-s ] } [  ?1 '[ _ deckload-s ] ?0 [ deckload-+ ] '[ _ deckload-call _ _ call ]  ] }
+} match-cond ;
+
+NEED TO CURRY EVERY VARIABLE
+ALSO FACTOR COMES WITH NON LINEAR PATTERN MATCHING, SO NO NEED TO HANDLE IT

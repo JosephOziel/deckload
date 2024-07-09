@@ -9,11 +9,12 @@ MATCH-VARS: ?a ?b ;
 TUPLE: matcher pat eq-vars ;
 TUPLE: ir.rule { matcher matcher } body ;
 TUPLE: match-const const ;
-SYMBOL: match-var
+TUPLE: match-var var ;
 
 C: <ir.rule> ir.rule
 C: <matcher> matcher
 C: <match-const> match-const
+C: <match-var> match-var
 
 <PRIVATE
 
@@ -30,7 +31,8 @@ C: <match-const> match-const
         { T{ var f ?a }
             [ ?a pick at* 
                 [ reach 2array suffix [ 1 + ] 2dip ]
-                [ drop [ [ 1 + ] keep ] [ [ ?a swap set-at ] keep ] [ ] tri* ] if match-var 
+                [ drop [ [ 1 + ] keep ] [ [ ?a swap set-at ] keep ] [ ] tri* ] if
+                ?a <match-var> 
             ] }
         { T{ const f ?a } [ ?a <match-const> ] }
     } match-cond ;
