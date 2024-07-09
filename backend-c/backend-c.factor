@@ -60,7 +60,7 @@ DEFER: (compile-pat)
 
 : compile-pat-terminal ( num-vars func pat -- num-vars c-cond )
     {
-        { match-var [ [ [ 1 + ] keep ] dip assign-var ] }
+        { T{ match-var f ?a } [ [ [ 1 + ] keep ] dip assign-var ] }
         { T{ match-const f ?a } [ ?a c-match-const ] }
     } match-cond ;
 
