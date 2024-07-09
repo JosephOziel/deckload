@@ -4,6 +4,7 @@ namespaces prettyprint ranges sequences sequences.deep
 sequences.generalizations sequences.repeating ;
 
 FROM: deckload.ir => match-var ;
+FROM: sequences.deep => flatten ;
 IN: deckload.backend-factor
 
 ! HELPERS:
@@ -13,20 +14,21 @@ IN: deckload.backend-factor
 : boilerplate ( -- code ) 
     "USING: continuations match sequences.generalizations quotations ;\nFROM: syntax => _ ;\n\n: deckload-call ( quot -- quot' ) { } swap with-datastack >quotation ;\n\n" ;
 
-:: complex-fried ( body outside quote -- code ) 
-    body [
+: complex-fried ( outside quote body -- outside quote ) 
+    [
         {
-            { [ dup const? ] [ name>> "deckload-%s" sprintf quote push ] }
-            { [ dup var? ] [ num>> number>string 63 prefix outside push "_" quote push ] }
-        }
-    ] ;
+            { [ dup const? ] [ name>> "deckload-%s" sprintf suffix ] }
+            { [ dup var? ] [ num>> number>string 63 prefix swapd prefix swap "_" suffix ] }
+            [ { } { } rot complex-fried vec-to-str 39 prefix " deckload-call" append suffix swapd prepend swap "_" suffix ]
+        } cond
+    ] each ;
 
-: compile-body-helper ( body -- code ) 
+: compile-body-helper ( body -- code )
     [ 
         {
-            { [ dup const? ] [ name>> "deckload-%s" sprintf ] } ! dup name>> names [ = ] with any? swap name>> "deckload-%s" sprintf swap [ "[ " " ]" surround ] when
+            { [ dup const? ] [ name>> "deckload-%s" sprintf ] }
             { [ dup var? ] [ num>> number>string 63 prefix ] }
-            [ V{ } V{ } complex-fried " deckload-call" append ]
+            [ { } { } rot complex-fried vec-to-str 39 prefix " deckload-call" append [ " " join ] dip 2array " " join ]
         } cond 
     ] map ;
 
@@ -44,21 +46,21 @@ IN: deckload.backend-factor
     [ 
         {
             { [ dup match-const? ] [ const>> "deckload-%s" sprintf ] }
-            { [ dup match-var? ] [ num>> number>string 63 prefix ] }
+            { [ dup match-var? ] [ var>> number>string 63 prefix ] }
             [ compile-pat vec-to-str ]
         } cond 
     ] map ;
 
 : compile-case ( rule -- code )
     [ matcher>> pat>> compile-pat " " join "{ %s }" sprintf ]
-    [ matcher>> eq-vars>> compile-eqvars rule body>> compile-body ] bi
-    "{ %s %s }\n" sprinf ;
+    [ body>> compile-body ] bi
+    "{ %s %s }\n" sprintf ;
 
 : compile-normal ( rule -- code )
     dup dup first swap second first matcher>> pat>> length
     [ " 0 " swap repeat "MACRO: deckload-%s ( %s-- 0 )\n" sprintf ]
     [ "%s narray\n" sprintf ] bi
-    over [ second [ compile-case ] map concat "{\n%s} match-cond ;\n\n" sprintf ] 
+    rot second [ compile-case ] map concat "{\n%s} match-cond ;\n\n" sprintf 
     3array concat ;
 
 : compile-main-body ( body -- code )
