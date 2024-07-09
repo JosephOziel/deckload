@@ -7,33 +7,6 @@
 
 int num_allocs = 0;
 
-struct Func;
-
-typedef struct {
-    struct Func* mem;
-    size_t* refcount;
-    size_t len;
-    size_t cap;
-} Vec ;
-
-typedef struct Func(*F)(Vec*, size_t);
-
-typedef enum {
-    NONE = 0,
-    FUNC = 1,
-    BLOCK = 2
-} Ty ;
-
-typedef union {
-    F func;
-    Vec block;
-} Data ;
-
-typedef struct Func {
-    Ty ty;
-    Data data;
-} Func ;
-
 void error(char* s) {
     fprintf(stderr, "%s\n", s);
     exit(-1);
@@ -62,6 +35,33 @@ void free_buf(void* ptr) {
     free(ptr);
 }
 
+struct Func;
+
+typedef struct {
+    struct Func* mem;
+    size_t* refcount;
+    size_t len;
+    size_t cap;
+} Vec ;
+
+typedef struct Func(*F)(Vec*, size_t);
+
+typedef enum {
+    NONE = 0,
+    FUNC = 1,
+    BLOCK = 2
+} Ty ;
+
+typedef union {
+    F func;
+    Vec block;
+} Data ;
+
+typedef struct Func {
+    Ty ty;
+    Data data;
+} Func ;
+
 Func func_new(F f) {
     return (Func) { FUNC, (Data) { .func = f } };
 }
@@ -77,17 +77,6 @@ Vec vec_new() {
     };
 }
 
-void vec_drop(Vec s) {
-    assert(*s.refcount);
-    if(--*s.refcount) return;
-
-    for(size_t i=0; i<s.len; ++i)
-        if(s.mem[i].ty==BLOCK) vec_drop(s.mem[i].data.block);
-    
-    free_buf(s.mem);
-    free_buf(s.refcount);
-}
-
 void vec_shallow_drop(Vec s) {
     assert(*s.refcount);
     if(--*s.refcount) return;
@@ -96,13 +85,8 @@ void vec_shallow_drop(Vec s) {
     free_buf(s.refcount);
 }
 
-void func_drop(Func f) {
-    if(f.ty == BLOCK) vec_drop(f.data.block);
-}
-
-Func shallow_clone(Func f) {
-    if(f.ty==BLOCK) *f.data.block.refcount+=1;
-    return f;
+size_t vec_len(Vec s) {
+    return s.len;
 }
 
 Func none() {
@@ -117,30 +101,27 @@ void vec_push(Vec* s, Func f) {
     s->mem[s->len++]=f;
 }
 
+Func vec_get(Vec s, size_t idx) {
+    assert(s.len>=idx);
+
+    return s.mem[idx];
+}
+
+
+Func shallow_clone(Func f) {
+    if(f.ty==BLOCK) *f.data.block.refcount+=1;
+    return f;
+}
+
 Func vec_pop(Vec* v) {
     assert(v->len>0);
     return v->mem[--v->len];
-}
-
-void vec_dec_len(Vec* s, size_t d) {
-    assert(s->len>=d);
-    while(d--) func_drop(s->mem[--s->len]);
-}
-
-size_t vec_len(Vec s) {
-    return s.len;
 }
 
 Func vec_last(Vec s, size_t idx) {
     assert(s.len>idx);
 
     return s.mem[s.len-idx-1];
-}
-
-Func vec_get(Vec s, size_t idx) {
-    assert(s.len>=idx);
-
-    return s.mem[idx];
 }
 
 void vec_append_except_last(Vec* v1, Vec v2) {
@@ -169,25 +150,6 @@ void vec_into_block(Vec* v, size_t len) {
     });
 }
 
-void d_call(Func f, Vec* s, size_t arg_start, int var) {
-    if(var && arg_start == vec_len(*s)) {
-        vec_push(s, f);
-        return;
-    }
-
-    Func t;
-    while(f.ty) {
-        t = f;
-        if(f.ty == BLOCK) {
-            vec_append_except_last(s, f.data.block);
-            f=vec_last(f.data.block, 0);
-        }
-        assert(f.ty==FUNC);
-        f=(*f.data.func)(s, arg_start);
-        func_drop(t);
-    }
-}
-
 typedef struct {
     Vec block;
     size_t idx;
@@ -207,7 +169,142 @@ Func fb_advance(FrozenBlock* fb) {
     return vec_get(fb->block, fb->idx++);
 }
 
-void fb_drop(FrozenBlock fb) {
-    vec_shallow_drop(fb.block);
+void fb_drop(FrozenBlock* fb) {
+    vec_shallow_drop(fb->block);
 }
+
+typedef struct {
+    FrozenBlock* mem;
+    size_t len;
+    size_t cap;
+} TreeIter ;
+
+TreeIter treeiter_new() {
+    FrozenBlock* mem=new_buf(INIT_CAP*sizeof(FrozenBlock));
+    return (TreeIter) {
+        .mem=mem,
+        .len=1,
+        .cap=INIT_CAP,
+    };
+}
+
+void treeiter_reset(TreeIter* ti, Func f) {
+    Vec block=vec_new();
+    vec_push(&block, f);
+    ti->mem[0]=fb_new(block);
+    ti->len=1;
+}
+
+Func treeiter_advance(TreeIter* ti, int(*enter)(Vec), void(*empty)(FrozenBlock*)) {
+    Func f;
+    FrozenBlock* block;
+
+    while(ti->len--) {
+        block=ti->mem+ti->len;
+        f = fb_advance(block);
+
+        if(!f.ty && !ti->len) {
+            fb_drop(block);
+            return none();
+        }
+
+        if(!f.ty) {
+            (*empty)(block);
+            continue;
+        }
+    
+        break;
+    }
+
+    ti->len++;
+    
+    if(f.ty==BLOCK && (*enter)(f.data.block)) {
+        ti->mem=ensure(ti->mem, ti->len+1, &ti->cap, sizeof(FrozenBlock));
+        ti->mem[ti->len++]=fb_new(f.data.block);
+    }
+
+    return f;
+}
+
+void treeiter_drop(TreeIter ti) {
+    free_buf(ti.mem);
+}
+
+TreeIter ti;
+
+int drop_enter(Vec v) {
+    assert(*v.refcount);
+    int res=*v.refcount==1;
+    if(!res) *v.refcount-=1;
+    return res;
+}
+
+#ifdef drop_using_heap
+void vec_drop(Vec s) {
+    assert(*s.refcount);
+    
+    treeiter_reset(&ti, (Func){BLOCK, (Data){.block=s}});
+    Func f;
+    while((f=treeiter_advance(&ti, drop_enter, fb_drop)).ty) {}
+}
+#else
+void vec_drop(Vec s) {
+    assert(*s.refcount);
+    if(--*s.refcount) return;
+
+    for(size_t i=0; i<s.len; ++i)
+        if(s.mem[i].ty==BLOCK) vec_drop(s.mem[i].data.block);
+    
+    free_buf(s.mem);
+    free_buf(s.refcount);
+}
+#endif
+
+void func_drop(Func f) {
+    if(f.ty == BLOCK) vec_drop(f.data.block);
+}
+
+void vec_dec_len(Vec* s, size_t d) {
+    assert(s->len>=d);
+    while(d--) func_drop(s->mem[--s->len]);
+}
+
+void d_call(Func f, Vec* s, size_t arg_start, int var) {
+    if(var && arg_start == vec_len(*s)) {
+        vec_push(s, f);
+        return;
+    }
+
+    Func t;
+    while(f.ty) {
+        t = f;
+        if(f.ty == BLOCK) {
+            vec_append_except_last(s, f.data.block);
+            f=vec_last(f.data.block, 0);
+        }
+        assert(f.ty==FUNC);
+        f=(*f.data.func)(s, arg_start);
+        func_drop(t);
+    }
+}
+
+int print_enter(Vec v) { printf("[ "); return 1; }
+void print_end(FrozenBlock* b) { printf("] "); fb_drop(b); }
+
+void print_func(F);
+
+void print(Func f) {
+    if(f.ty==FUNC) {
+        print_func(f.data.func);
+        return;
+    }
+    assert(f.ty==BLOCK);
+    treeiter_reset(&ti, f);
+    while((f=treeiter_advance(&ti, print_enter, print_end)).ty) {
+        if(f.ty==FUNC) {
+            print_func(f.data.func);
+        }
+    }
+}
+
 // generated code begins...

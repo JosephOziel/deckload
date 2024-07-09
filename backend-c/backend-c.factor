@@ -145,46 +145,14 @@ DEFER: (compile-pat)
     "" [ compile-function append ] assoc-reduce ;
 
 : compile-print-name ( name -- c-stmt )
-    dup [ c-encode-func-name ] dip "if(f.data.func==%s) printf(\"%s\")" sprintf ;
+    dup [ c-encode-func-name ] dip "if(f==%s) printf(\"%s\")" sprintf ;
 
 : compile-print ( names -- c-func )
     [ compile-print-name ] map add-semicolons
     [[
-void print(Func arg) {
-    FrozenBlock* s = new_buf(INIT_CAP*sizeof(FrozenBlock));
-    size_t len=0, cap=INIT_CAP;
-    Vec block;
-    if(arg.ty==BLOCK) {
-        block = arg.data.block;
-    } else {
-        block = vec_new();
-        vec_push(&block, arg);
-    }
-    s[len++]=fb_new(block);
-    FrozenBlock* t;
-    Func f;
-    printf("[ ");
-
-    while(len--) {
-        t=s+len;
-        f=fb_advance(t);
-        if(f.ty==NONE) {
-            fb_drop(*t);
-            printf("] ");
-            continue;
-        }
-        len++;
-        if(f.ty==BLOCK) {
-            printf("[ ");
-            s=ensure(s, len+1, &cap, sizeof(FrozenBlock));
-            s[len++] = fb_new(f.data.block);
-        } else {
-            assert(f.ty==FUNC);
-            %s
-            printf(" ");
-        }
-    }
-    free_buf(s);
+void print_func(F f) {
+    %s
+    printf(" ");
 }
     ]] sprintf ;
 
@@ -195,6 +163,7 @@ char buf[BUFSIZ];
 
 int main(int argc, char* argv) {
     setbuf(stdout, buf);
+    ti=treeiter_new();
     Vec v=vec_new();
     d_call(func_new(%s), &v, 0, 0);
     while(vec_len(v)) {
@@ -203,6 +172,7 @@ int main(int argc, char* argv) {
     }
     fflush(stdout);
     vec_drop(v);
+    treeiter_drop(ti);
     if(num_allocs) {
         printf("%%d allocations not freed, please report this to the devs\n", num_allocs);
         return -1;
