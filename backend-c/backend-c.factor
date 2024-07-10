@@ -25,7 +25,7 @@ MATCH-VARS: ?a ;
 
 : c-encode-func-name ( name -- c-safe-name )
     [ dup alpha?
-        [ 1string ] [ dup "_" = [ drop "__" ] [ "_b_%d" sprintf ] if ] if
+        [ 1string ] [ dup CHAR: _ = [ drop "__" ] [ "_b_%d" sprintf ] if ] if
     ] V{ } map-as "" join c-funcname-prefix prepend ;
 
 : c-match-const ( func const -- c-expr )
@@ -210,7 +210,11 @@ int main(int argc, char* argv) {
         ] [ dupd ] if dup empty? [ nip ] [ add-indent ] if
     ] map "\n" join nip ;
 
+: (compile-to-c) ( entry-point ir -- c-code )
+    compile-nonboilerplate format c-boilerplate prepend ;
+
 PRIVATE>
 
-: compile-to-c ( entry-point ir -- c-code )
-    compile-nonboilerplate format c-boilerplate prepend ;
+: compile-to-c ( ir -- c-code )
+    "main" swap 2dup key? [ V{ } clone 2over set-at ] unless
+    (compile-to-c) ;
