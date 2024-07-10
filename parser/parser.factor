@@ -1,5 +1,5 @@
-USING: arrays kernel match math.parser multiline peg peg.ebnf
-sequences strings vectors ;
+USING: arrays combinators kernel match math.parser multiline peg
+peg.ebnf sequences strings vectors ;
 IN: deckload.parser
 
 TUPLE: var num ;
@@ -14,12 +14,32 @@ C: <import> import
 
 MATCH-VARS: ?a _ ;
 
+! : flatten ( tree -- flattened )
+!     dup vector? [
+!         {
+!             { [ dup length 1 = ] [ ] }
+!             { [ dup empty? ] [ ] }
+!             [ unclip-last dup vector? [ append ] [ suffix ] if ]
+!        } cond
+!     ] when ;
+
+! OLD
 : flatten ( tree -- flattened )
     dup vector? [
         dup empty?
         [ unclip-last dup vector? [ append ] [ suffix ] if ] unless
         dup length 1 = [ first ] when
     ] when ;
+
+! JohnB version
+! : flatten* ( tree -- foo )
+!     dup length 1 > [
+!         unclip [ flatten* ] dip
+!         over sequence? [ prefix ] [ swap 2array ] if 
+!     ] [
+!         ?first dup { [ sequence? ] [ length 1 = ] } 1&&
+!         [ flatten* ] when
+!     ] if ;
 
 : parse-rule ( left right -- rule )
     swap dup vector?
@@ -28,7 +48,6 @@ MATCH-VARS: ?a _ ;
         { T{ const f ?a } [ ?a ] }
         [ "the last item on the left of a rule should be a const" throw ]
     } match-cond spin <rule> ;
-
 
 EBNF: deckload-parse [=[
     spaces = [ \t\n\r]* => [[ drop ignore ]]

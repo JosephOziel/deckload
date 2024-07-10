@@ -19,7 +19,7 @@ IN: deckload.backend-factor
         {
             { [ dup const? ] [ name>> "deckload-%s" sprintf suffix ] }
             { [ dup var? ] [ num>> number>string 63 prefix swapd prefix swap "_" suffix ] }
-            [ { } { } rot complex-fried vec-to-str 39 prefix " deckload-call" append suffix swapd prepend swap "_" suffix ]
+            [ { } { } rot complex-fried vec-to-str "'%s deckload-call" sprintf suffix swapd prepend swap "_" suffix ]
         } cond
     ] each ;
 
@@ -27,8 +27,8 @@ IN: deckload.backend-factor
     [ 
         {
             { [ dup const? ] [ name>> "deckload-%s" sprintf ] }
-            { [ dup var? ] [ num>> number>string 63 prefix ] }
-            [ { } { } rot complex-fried vec-to-str 39 prefix " deckload-call" append [ " " join ] dip 2array " " join ]
+            { [ dup var? ] [ num>> number>string CHAR: ? prefix ] }
+            [ { } { } rot complex-fried vec-to-str "'%s deckload-call" sprintf [ " " join ] dip 2array " " join ]
         } cond 
     ] map ;
 
@@ -36,7 +36,7 @@ IN: deckload.backend-factor
     compile-body-helper [ dup first 100 = [ "[ " " ]" surround ] when ] map dup 
     [
         {
-            { [ dup first 91 = ] [ drop "_ call" ] } ! 91 is the ascii number for "[" 
+            { [ dup first CHAR: [ = ] [ drop "_ call" ] } ! 91 is the ascii number for "[" 
             [ drop "_" ]
         } cond
     ] map " " join "'[ %s ]" sprintf
@@ -46,7 +46,7 @@ IN: deckload.backend-factor
     [ 
         {
             { [ dup match-const? ] [ const>> "deckload-%s" sprintf ] }
-            { [ dup match-var? ] [ var>> number>string 63 prefix ] }
+            { [ dup match-var? ] [ var>> number>string CHAR: ? prefix ] }
             [ compile-pat vec-to-str ]
         } cond 
     ] map ;
@@ -74,7 +74,7 @@ IN: deckload.backend-factor
 : compile-main ( rule -- code ) 
     "MACRO: deckload-main ( -- 0 )\n"
     swap second first body>> compile-main-body " " join 
-    "[ %s unparse write ] ;\n\nMAIN: deckload-main\n" sprintf append ;
+    "[ %s unparse write ] ;\n\nMAIN: deckload-main\n\n" sprintf append ;
 
 : compile-rule ( rule -- code ) 
     dup first "main" = [ compile-main ] [ compile-normal ] if ;
