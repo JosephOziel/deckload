@@ -19,7 +19,7 @@ void* check_oom(void* p) {
 
 void* ensure(void* p, size_t len, size_t* cap, size_t size) {
     if(len > *cap) {
-        *cap *= 2;
+        while(len>*cap) *cap *= 2;
         return check_oom(realloc(p, *cap*size));
     }
     return p;
@@ -183,7 +183,7 @@ TreeIter treeiter_new() {
     FrozenBlock* mem=new_buf(INIT_CAP*sizeof(FrozenBlock));
     return (TreeIter) {
         .mem=mem,
-        .len=1,
+        .len=0,
         .cap=INIT_CAP,
     };
 }
@@ -203,17 +203,14 @@ Func treeiter_advance(TreeIter* ti, int(*enter)(Vec), void(*empty)(FrozenBlock*)
         block=ti->mem+ti->len;
         f = fb_advance(block);
 
-        if(!f.ty && !ti->len) {
+        if(f.ty) break;
+
+        if(!ti->len) {
             fb_drop(block);
             return none();
         }
 
-        if(!f.ty) {
-            (*empty)(block);
-            continue;
-        }
-    
-        break;
+        (*empty)(block);
     }
 
     ti->len++;
