@@ -21,7 +21,7 @@ MATCH-VARS: ?a ;
     c-varname-prefix swap "%s%d" sprintf ; inline
 
 : assign-var ( v func -- c-expr )
-    [ c-var ] dip "(%s = shallow_clone(%s)).ty" sprintf ; inline
+    [ c-var ] dip "(%s = %s).ty" sprintf ; inline
 
 : c-encode-func-name ( name -- c-safe-name )
     [ dup alpha?
@@ -104,12 +104,17 @@ DEFER: (compile-pat)
 : compile-case-body-root ( body -- c-body c-end v/f )
     "0" swap dup vector? [ unclip-last ] [ V{ } clone swap ] if
     [
-        dup empty? 
+        dup empty?
         [ 2drop "" ] [ [ compile-case-body ] with map "\n" join ] if
     ] [ compile-tail-call ] bi* ;
 
-: compile-case-begin ( num-args -- c-stmt )
-    c-stack swap "vec_dec_len(%s, %d);\n" sprintf ;
+: clone-vars ( num-vars -- c-code )
+    <iota> [
+        c-var dup "%s = shallow_clone(%s)" sprintf
+    ] map add-semicolons ;
+
+: compile-case-begin ( num-vars num-args -- c-stmt )
+    [ clone-vars ] dip c-stack swap "%svec_dec_len(%s, %d);\n" sprintf ;
 
 : compile-case-end ( forbidden num-vars -- c-code )
     <iota> swap [ [ = not ] curry filter ] when*
@@ -117,7 +122,7 @@ DEFER: (compile-pat)
 
 : compile-rule ( rule -- num-vars c-code )
     [ matcher>> compile-matcher ]
-    [ matcher>> pat>> length compile-case-begin ]
+    [ [ over ] dip matcher>> pat>> length compile-case-begin ]
     [ body>> compile-case-body-root ] tri
     [ reach ] 2dip rot compile-case-end swap
     "if(%s) {\n%s\n%s\n%s\nreturn %s;\n}" sprintf ;
